@@ -1,0 +1,16 @@
+# 
+Hub_Addr:127.0.0.1
+
+Hub_Http_Port:5000
+
+Hub_Udp_Port:3001
+
+Test_Mode:False
+
+# Config section 01: Score database (influxDB1.8.1) info.
+# > Define the influxDB connection detail
+scoreDB_Ip:localhost
+scoreDB_Port:8086
+scoreDB_User:root
+scoreDB_Pwd:root
+scoreDB_Name:gatewayDB
