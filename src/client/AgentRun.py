@@ -51,7 +51,7 @@ def initProbers(agent):
 #-----------------------------------------------------------------------------
 def main():
     initGlobalVal()
-    agent = probeAgent.ProbeAgent(gv.gOwnID, timeInterval=60)
+    agent = probeAgent.ProbeAgent(gv.gOwnID, timeInterval=gv.gTimeInterval)
     initProbers(agent)
     print("startRun")
     agent.startRun()

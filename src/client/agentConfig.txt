@@ -6,3 +6,7 @@ Hub_Http_Port:5000
 Hub_Udp_Port:3001
 
 Test_Mode:False
+
+OWN_ID:192.168.35.102
+
+TIME_INV:60
