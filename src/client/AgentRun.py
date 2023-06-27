@@ -18,10 +18,12 @@ import localServiceProber
 
 import commManager
 import probeAgent
+import BgCtrl as bg
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 def initGlobalVal():
+    if gv.gBgctrl: gv.iBgctrler = bg.BgController("ProgAgent")
     gv.iNetProbeDriver = networkServiceProber.networkServiceProber(debugLogger=Log)
     gv.iLocalProbeDriver = localServiceProber.localServiceProber(gv.gOwnID, debugLogger=Log)
     gv.iCommMgr = commManager.commManager()
@@ -56,6 +58,7 @@ def main():
     print("startRun")
     agent.startRun()
     print('Finish')
+    gv.iCommMgr.disconnect()
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------

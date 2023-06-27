@@ -122,6 +122,9 @@ class ProbeAgent(object):
 #-----------------------------------------------------------------------------     
     def startRun(self):
         while not self.terminate:
+            if gv.iBgctrler and not gv.iBgctrler.bgRun():
+                gv.gDebugPrint("Back groud running is termiated by user.", logType=gv.LOG_INFO)
+                return
             if not gv.gTestMode:
                 self.executeProbers()
             time.sleep(1)

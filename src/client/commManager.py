@@ -32,6 +32,7 @@ class udpManager(threading.Thread):
         threading.Thread.__init__(self)
         self.udpServer = None
         self.udpClient = None
+        self.daemon = True
 
     def initUDPServer(self, udpPort):
         self.udpServer = udpCom.udpServer(None, udpPort)
@@ -83,6 +84,10 @@ class udpManager(threading.Thread):
                 gv.gDebugPrint('Target [%s] is not responsed.' %str(targetIP), logType=gv.LOG_WARN)
             else:
                 return self._parseIncomeMsg(resp)
+    
+    #-----------------------------------------------------------------------------
+    def disconnect(self):
+        if self.udpServer: self.udpServer.serverStop()
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------

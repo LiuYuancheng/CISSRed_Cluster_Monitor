@@ -9,4 +9,6 @@ Test_Mode:False
 
 OWN_ID:192.168.35.102
 
+BG_CTRL:True
+
 TIME_INV:60

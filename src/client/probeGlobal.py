@@ -81,9 +81,11 @@ def gGetConfigVal(key, defaultVal=None):
 gOwnID = gGetConfigVal('OWN_ID', defaultVal='localhost')
 gTestMode = gGetConfigVal('Test_Mode', defaultVal=False)
 gTimeInterval = int(gGetConfigVal('TIME_INV', defaultVal=60))
+gBgctrl = gGetConfigVal('BG_CTRL', defaultVal=False)
 
 #-------<GLOBAL INSTANCES (start with "i")>-------------------------------------
 iCommMgr = None
+iBgctrler = None
 iDataMgr = None
 iPortScanner = None
 iNetProbeDriver = None
