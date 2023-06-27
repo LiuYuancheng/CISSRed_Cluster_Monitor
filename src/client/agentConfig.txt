@@ -1,0 +1,8 @@
+# 
+Hub_Addr:127.0.0.1
+
+Hub_Http_Port:5000
+
+Hub_Udp_Port:3001
+
+Test_Mode:False
