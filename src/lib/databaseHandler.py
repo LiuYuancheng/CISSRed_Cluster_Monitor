@@ -191,7 +191,7 @@ class InfluxDB1Cli(dbHandler):
     #-----------------------------------------------------------------------------
     def getTableList(self):
         try:
-            if self.dbClient.ping(): return self.dbClient.get_list_measurements()
+            if self.dbClient.ping(): return True
             print("InfluxDB server does not response ping() ")
             return None
         except:
