@@ -13,11 +13,18 @@ sudo pip3 install ntplib
 sudo pip3 install psutil
 git clone https://github.com/LiuYuancheng/CISSRed_Cluster_Monitor.git
 
-sudo nohup python monitorAgent/CISSRed_Cluster_Monitor/src/client/AgentRun.py &
+sudo nohup python3 monitorAgent/CISSRed_Cluster_Monitor/src/client/AgentRun.py &
+
+sudo nohup python3 AgentRun.py &
 
 record the process:
+
+sudo nohup python3 AgentRun.py &
+
 ncl@cptest4:~$ sudo nohup python3 monitorAgent/CISSRed_Cluster_Monitor/src/client/AgentRun.py &
 [1] 137511
+
+163414
 
 ps ax | grep AgetntRun.py
 
