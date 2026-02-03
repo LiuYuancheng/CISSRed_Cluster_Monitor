@@ -44,46 +44,150 @@ For example, the CISS-Red Stage One CTF event required continuous monitoring of 
 
 ### 2. System Architecture
 
-The implemented solution of the monitoring system leverages a three-tier architecture:
+The monitoring system adopts a fetch-based agent architecture, where a central Monitor Hub actively pulls data from distributed agents instead of having agents push data upstream. This design choice is driven primarily by security considerations: in a CTF environment, participants may attempt to reverse-engineer agent code or forge requests to inject fake metrics. By keeping all data collection under the control of the central hub, the attack surface is significantly reduced and unauthorized data submission can be effectively prevented.
 
-- **Agent Layer**: Lightweight Python agents deployed on or connect to each monitored node. 
-- **Storage Layer**: InfluxDB time-series database for efficient metric storage
-- **Visualization Layer**: Grafana dashboard for real-time data presentation
+From an architectural perspective, the system follows a simple three-tier design as shown below:
 
-The system workflow diagram is shown below. 
-
-![]()
-
-The CTF participants needs to ssh login the gateway through the firewall and to the CTF challenge VM assigned to them. For each of the physical server hosting the challenge and VM docker, it will have 2 network interfaces in two different isolated network, the participants traffic will access the challenge VM/Dockers via interface1 (blue part in the diagram )
-
-
-
-
-
-
-
-We want to use the **Cluster Service Health Monitor** to create a simple dashboard to monitor the Computing cluster's resource usage (CPU%, RAM%) and network latency for the CISS-Red2023-CTF during the 48 event hours, so the NCL support and response the possible hardware problem in time during the event.
-
-**LICENSE DECLARE**: 
-
+```python
+┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+│  Physical    │         │  Physical    │         │  Physical    │
+│  Server 1    │         │  Server 2    │         │  Server N    │
+│  ┌────────┐  │         │  ┌────────┐  │         │  ┌────────┐  │
+│  │ Agent  │  │         │  │ Agent  │  │         │  │ Agent  │  │
+│  │(Python)│  │         │  │(Python)│  │         │  │(Python)│  │
+│  └────────┘  │         │  └────────┘  │         │  └────────┘  │
+│      │ Local │         │      │ Local │         │      │ Local │
+│      │Storage│         │      │Storage│         │      │Storage│
+└──────┼───────┘         └──────┼───────┘         └──────┼───────┘
+       └────────────────┬───────┴────────────────────────┘
+                        │ HTTP Fetch Requests(Pull Mode)
+                        ▼
+              ┌──────────────────────────┐
+              │  Monitor Hub (Collector) │
+              └────────┬─────────────────┘
+                       │ Write Metrics
+                       ▼
+              ┌──────────────────────────────────┐
+              │   InfluxDB(Time-Series Database) │
+              └────────┬─────────────────────────┘
+                       │ Query Data
+                       ▼
+              ┌──────────────────────────────────────┐
+              │    Grafana Dashboard (Visualization) │
+              └──────────────────────────────────────┘
 ```
-This project is a test case of project [Cluster Service Health Monitor] with GNU General Public License. 
 
-Cluster Service Health Monitor link:
-https://github.com/LiuYuancheng/Cluster_Service_Health_Monitor
-```
+- **Agent Layer** – Lightweight Python agents deployed on, or connected to, monitored nodes to collect system and service metrics.
 
-[TOC]
+- **Storage Layer** – An InfluxDB time-series database used to efficiently store and query monitoring data.
+
+- **Visualization Layer** – A Grafana dashboard that provides real-time visualization, historical analysis, and operational overview of the cluster and a message sender to send the 
+
+#### 2.1 System Workflow Detail
+
+The overall system workflow is illustrated in the diagram below.
+
+![](doc/img/s_01.png)
+
+In the CISS-Red CTF environment, the participants first SSH into a gateway through the firewall and then access their assigned challenge virtual machines. Each physical server hosting challenge VMs or Docker containers is equipped with two RJ45 network interfaces connected to two isolated networks:
+
+- **Interface 1 (blue path in the diagram)** is used exclusively for participant traffic to access the challenge services.
+- **Interface 2 (orange path in the diagram)** is dedicated to monitoring traffic, allowing the monitoring agents and hub to collect operational data without interfering with or being exposed to participant activity.
+
+This configuration ensures that monitoring traffic does not affect the performance or fairness of the competition environment. From a functional point of view, the system consists of three main components:
+
+- **Service Prober Repository** : A reusable service-checking library that provides multiple probing functions (e.g., NTP, FTP, VNC, SSH, and custom service checks). These probers are used to verify whether a specific node, service, program, or function in the cluster is operating correctly.
+- **Prober Agent** : A lightweight agent responsible for scheduling and executing different probers to assess the availability and health of one or more targets in the cluster. The agent can run locally on a server to collect metrics directly. For nodes where an agent cannot be installed, the system falls back to **SSH-based command execution** to retrieve the required data remotely.
+- **Monitor Hub** : The central monitoring and analysis component, which provides: a database backend (InfluxDB) for archiving time-series metrics, a web-based dashboard (Grafana) for real-time and historical visualization, and extensible interfaces for integrating custom logic, such as score calculation formulas or competition-specific evaluation functions.
+
+#### 2.2 Technology Stack
+
+The library and tools used in this project and the related link are shown in the below table : 
+
+| Component              | Technology   | Version | Purpose                 | Link                                                         |
+| ---------------------- | ------------ | ------- | ----------------------- | ------------------------------------------------------------ |
+| Programming Language   | Python       | 3.7.4+  | Agent development       |                                                              |
+| Time-Series Database   | InfluxDB     | 1.8.10  | Metric storage          | https://docs.influxdata.com/influxdb/v1/about_the_project/release-notes/ |
+| Visualization Platform | Grafana      | Latest  | Dashboard creation      | https://grafana.com/                                         |
+| System Monitoring      | psutil       | Latest  | CPU/RAM metrics         |                                                              |
+| Network Testing        | pythonping   | Latest  | Latency measurement     |                                                              |
+| Time Synchronization   | ntplib       | Latest  | Timestamp accuracy      |                                                              |
+| Telegram API           | Telegram Bot | Latest  | Real time alert message | https://www.toptal.com/developers/python/telegram-bot-tutorial-python |
+
+
 
 ------
 
-### Introduction
+### 3. System Modules Design
 
-This project is a test case of project [Cluster Service Health Monitor] to monitor the Computing cluster's resource usage (CPU%, RAM%) and network latency for the CISS-Red2023-CTF during the 48 event hours. 
+In this section we will introduce the detail design of the 3 components 
 
-##### System workflow diagram
+#### 3.1 Service Prober Repository 
 
-The system workflow diagram is shown below. As the agent program are not compiled, to avoid the participant scan or send request to the monitor hub after checking the agent's code, we set the data committing mode to "Fetch mode", so the monitor will connect to the agent when it want to the data, the agent will only collected the data and save in their local storage. 
+Service Prober Repository is a prober module lib to provide the service / program function check function. The prober function can be categorized to three parts: local service probers, children agent prober and network service probers.
+
+**Local service prober :** The local service prober will run inside the target node to monitor the nodes resource usage (CPU%, Memory, Hard disk, user), network state (port opened, connection, NIC I/O state), local program execution state (process) and file system modification. The probers details are shown below: 
+
+| **Prober Name**       | **Probe action/ service covered**                            |
+| --------------------- | ------------------------------------------------------------ |
+| Resource usage Prober | CPU %, Memory %, Hard Disk %, Network  Bandwidth Usage.      |
+| User action Prober    | User login, cmd  executed, file system modification.         |
+| Program action prober | Program execution, process started,  service port opened, program log check. |
+
+**Children Agent prober :** A prober to fetch data from other prober agent program and merge the data. This prober is used for link the subnets which only linked with jump host without set routing table. 
+
+**Network Service prober:** The service prober run outside the target nodes to check the node's services state through network. The probe functions provided are shown below: 
+
+| **Prober Name**              | **Probe action/ service covered**                            |
+| ---------------------------- | ------------------------------------------------------------ |
+| Server active Prober         | ICMP (ping), SSH(login), RDP, VNC,  X11/X11:1-Win            |
+| Service ports prober         | Use a customized Nmap lib check whether  the node's request service ports are opened. |
+| **NTP** service prober       | Check the NTP  service latency and time offset correctness.  |
+| **DNS/NS**  service prober   | Check the dns service name mapping correct.                  |
+| **DHCP** service prober      | Check the dhcp broadcast.                                    |
+| **FTP** service prober       | Whether can  login the FTP server and list the directory tree. |
+| **Http/https web** prober    | Check the webserver can handle request correctly             |
+| **Email**  service prober    | Check whether the email server is working normally           |
+| **TCP/UDP**  service prober  | Service use  TCP/UDP connection. (such as MS-Teams, Skype service) |
+| **Database**  service prober | Check the database connection                                |
+
+#### 3.2 Prober Agent Module
+
+An agent program collects and schedules several different kinds of probers based on the customized config profile to check the entire service availably of a small cluster as shown in the below diagram
+
+![](doc/img/s_02.png)
+
+The prober agent provides below 5 main features: 
+
+- **Configuration base on profile** : User can easily use their customized profile to config all probers’ execution timeline.
+- **Probing from outside/Inside** : Agent can run inside the critical node to check the node's local state or run outside in a node to check the service interface of multiple nodes. So, the customer can deploy the agents based on his monitor priority instead of deploying agent to every node. 
+- **Customized prober plugin** : It also provides the interface for customer to plugin their customized probe function for specific service (such as a check a billing server).
+- **Data report bus**: To avoid changing the original routing config of a cluster, a prober agent can also fetch data from the other touchable prober agents to build a data translation bus/chain to make the deployment easier.
+- **Multiple connection protocol** : The agent provide different network protocol for data fetch/report (TCP, UDP, HTTP, HTTPS) to fit for the network traffic limitation requirement in a cyber exercise. 
+
+#### 3.3 Monitor Hub Module
+
+The monitor hub is a data processing, analysis and visualization system. All the prober agents will report their monitor result to the monitor hub via communication manager. The monitor hub provides a web-based dashboard (currently we are using Grafana) for users to check the monitored cluster's state, a topology diagram to show the clusters’ services online state and it also provides the interface for user to plug in their score calculation formular/function. The data flow diagram is shown on the right side. 
+
+Two data bases will be included in the program: 
+
+![](doc/img/s_03.png)
+
+- **Raw info database:** A database used to archive all the collected service data. 
+
+- **Score database**: A database save all the data need to be visualized in the score database. 
+
+The data manager will fetch needed data from Raw-Info-DB, process and analysis the raw data and calculate the service core based on customer's score calculation function, then insert/update the data in score database.
+
+
+
+
+
+
+
+
+
+
 
 ![](doc/img/workflow.png)
 
