@@ -1,6 +1,54 @@
-# CISS-Red2023-CTF_Cluster_Monitor
+# **Building a Lightweight, Secure Cluster Monitor with InfluxDB and Grafana**
 
-**Program Design Purpose** : We want to use the **Cluster Service Health Monitor** to create a simple dashboard to monitor the Computing cluster's resource usage (CPU%, RAM%) and network latency for the CISS-Red2023-CTF during the 48 event hours, so the NCL support and response the possible hardware problem in time during the event.
+**Project Design Purpose** : This article walks through a lightweight, self-hosted server/VM cluster monitoring system built with Python, InfluxDB, and Grafana, designed specifically to handle the special or customized requirement for monitoring the  security labs, OT networks, or isolated clusters. Instead of relying on a black-box agent, you’ll build your own custom data collectors and monitor that fetch metrics from exactly the sources you need—whether that’s IPMI, network probes, or application-specific endpoints—and push them into a secure, local time-series database.
+
+The practical example in this article is inspired by the CISS-Red_Cluster_Monitor project, which was developed to monitor a sandbox cluster (400+ VM) used for supporting a red team cybersecurity CTF competition. To make the design clear and reproducible, the article is structured around four main parts:
+
+- **Core Idea** – The overall system architecture, including the agent/fetcher model and communication flow.
+- **Security Design Choice: ** – How the system is designed to prevent participants from reverse-engineering agents or sending fake metrics.
+- **Technology Stack** – The tools used (Python, InfluxDB, Grafana, etc.) and how to install and configure them.
+- **Data and UI** – How data is stored, visualized in dashboards, and summarized or alerted (e.g., via Grafana and Telegram).
+
+```python
+# Author:      Yuancheng Liu
+# Created:     2026/01/27
+# Version:     v_0.2.1
+# Copyright:   Copyright (c) 2025 Liu Yuancheng
+# License:	   GNU General Public License
+```
+
+**Table of Contents**
+
+[TOC]
+
+------
+
+### 1. Introduction
+
+There are several tools in the market for supervising servers and VM clusters solutions like [PM2](https://pm2.keymetrics.io/) and similar platforms can monitor workload, network latency, and services running in Docker or virtual machines with very little setup. But some times we may have some special or customized requirement for monitoring the  security labs, OT networks, or isolated clusters, such as: 
+
+- Can’t directly install agents on certain devices
+- Need to collect power and hardware telemetry from sources like IPMI instead of OS-level agents
+- The system must run in a fully local / air-gapped environment with no internet access
+- Need to visualize the custom data collection and validation logic.
+
+Based on these scenario and requirement, the monitoring system had to be: Simple and reliable under competition load, Secure against tampering or fake data injection, Deployable in a restricted network environment, and easy for administrators to visualize and audit in real time. 
+
+#### 1.1 Usage Case Background And Objectives 
+
+For example, the CISS-Red Stage One CTF event required continuous monitoring of multiple physical servers and virtual machines over a 48-hour period to ensure infrastructure stability and enable rapid incident response. The monitoring objective was to track key metrics in real time—including host servers CPU and memory usage, network latency, service availability of the CTF challenge VMs, and user SSH login activity—and to present all of this information through a centralized, intuitive dashboard. Whenever an abnormal condition was detected, the system would automatically send alert notifications to the support and administrator Telegram groups.
+
+
+
+------
+
+\2. System Architecture
+
+
+
+
+
+We want to use the **Cluster Service Health Monitor** to create a simple dashboard to monitor the Computing cluster's resource usage (CPU%, RAM%) and network latency for the CISS-Red2023-CTF during the 48 event hours, so the NCL support and response the possible hardware problem in time during the event.
 
 **LICENSE DECLARE**: 
 
