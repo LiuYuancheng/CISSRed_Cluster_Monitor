@@ -5,7 +5,7 @@
 The practical example in this article is inspired by the CISS-Red_Cluster_Monitor project, which was developed to monitor a sandbox cluster (400+ VM) used for supporting a red team cybersecurity CTF competition. To make the design clear and reproducible, the article is structured around four main parts:
 
 - **Core Idea** – The overall system architecture, including the agent/fetcher model and communication flow.
-- **Security Design Choice: ** – How the system is designed to prevent participants from reverse-engineering agents or sending fake metrics.
+- **Security Design Choice** – How the system is designed to prevent participants from reverse-engineering agents or sending fake metrics.
 - **Technology Stack** – The tools used (Python, InfluxDB, Grafana, etc.) and how to install and configure them.
 - **Data and UI** – How data is stored, visualized in dashboards, and summarized or alerted (e.g., via Grafana and Telegram).
 
@@ -42,7 +42,21 @@ For example, the CISS-Red Stage One CTF event required continuous monitoring of 
 
 ------
 
-\2. System Architecture
+### 2. System Architecture
+
+The implemented solution of the monitoring system leverages a three-tier architecture:
+
+- **Agent Layer**: Lightweight Python agents deployed on or connect to each monitored node. 
+- **Storage Layer**: InfluxDB time-series database for efficient metric storage
+- **Visualization Layer**: Grafana dashboard for real-time data presentation
+
+The system workflow diagram is shown below. 
+
+![]()
+
+The CTF participants needs to ssh login the gateway through the firewall and to the CTF challenge VM assigned to them. For each of the physical server hosting the challenge and VM docker, it will have 2 network interfaces in two different isolated network, the participants traffic will access the challenge VM/Dockers via interface1 (blue part in the diagram )
+
+
 
 
 
