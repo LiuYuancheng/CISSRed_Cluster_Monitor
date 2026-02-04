@@ -1,14 +1,16 @@
 # **Building a Lightweight, Secure Cluster Monitor with InfluxDB and Grafana**
 
-**Project Design Purpose** : This article walks through a lightweight, self-hosted server/VM cluster monitoring system built with Python, InfluxDB, and Grafana, designed specifically to handle the special or customized requirement for monitoring the  security labs, OT networks, or isolated clusters. Instead of relying on a black-box agent, you’ll build your own custom data collectors and monitor that fetch metrics from exactly the sources you need—whether that’s IPMI, network probes, or application-specific endpoints—and push them into a secure, local time-series database.
+> **[ A Practical Guide Inspired by the CISS-Red_Cluster_Monitor Project ] **
+
+**Project Design Purpose** : This article walks through a lightweight, self-hosted server/VM cluster monitoring system built with Python, InfluxDB, and Grafana, designed specifically to handle the special or customized requirement for monitoring the security labs, CTF environment, OT networks, or isolated clusters. Instead of relying on a black-box agent, you’ll build your own custom data collectors and monitor that fetch metrics from exactly the sources you need—whether that’s IPMI, network probes, or application-specific endpoints—push them into a secure, local time-series database and visualize the data with customized dashboards.
 
 ![](doc/img/title.png)
 
-The practical example in this article is inspired by the CISS-Red_Cluster_Monitor project, which was developed to monitor a sandbox cluster (400+ VM) used for supporting a red team cybersecurity CTF competition. To make the design clear and reproducible, the article is structured around four main parts:
+The practical example in this article is inspired by the CISS-Red_Cluster_Monitor project, which was developed to monitor a sandboxes cluster (400+ VM) used for supporting a red team cybersecurity CTF competition. To make the design clear and reproducible, the article is structured around four main parts:
 
-- **Core Idea** – The overall system architecture, including the agent/fetcher model and communication flow.
-- **Security Design Choice** – How the system is designed to prevent participants from reverse-engineering agents or sending fake metrics.
-- **Technology Stack** – The tools used (Python, InfluxDB, Grafana, etc.) and how to install and configure them.
+- **Core Design Idea** – The overall system architecture, including the agent/fetcher model and communication flow.
+- **Security Config Choice** – How the system is designed to prevent participants from reverse-engineering agents or sending fake metrics.
+- **Technology Stack** – The tools used (`Python`, `InfluxDB`, `Grafana`, etc.) and how to install and configure them.
 - **Data and UI** – How data is stored, visualized in dashboards, and summarized or alerted (e.g., via Grafana and Telegram).
 
 ```python
@@ -27,14 +29,14 @@ The practical example in this article is inspired by the CISS-Red_Cluster_Monito
 
 ### 1. Introduction
 
-There are several tools in the market for supervising servers and VM clusters solutions like [PM2](https://pm2.keymetrics.io/) and similar platforms can monitor workload, network latency, and services running in Docker or virtual machines with very little setup. But some times we may have some special or customized requirement for monitoring the  security labs, OT networks, or isolated clusters, such as: 
+There are several free or commercial tools in the market for supervising servers and VM clusters like [PM2](https://pm2.keymetrics.io/) which can monitor the workload, network latency, and services running in physical server, docker or virtual machines with very little setup. But some times we may have some special or customized requirement such as: 
 
-- Can’t directly install agents on certain devices
+- Can’t directly install agents on some certain devices
 - Need to collect power and hardware telemetry from sources like IPMI instead of OS-level agents
 - The system must run in a fully local / air-gapped environment with no internet access
 - Need to visualize the custom data collection and validation logic.
 
-Based on these scenario and requirement, the monitoring system had to be: Simple and reliable under competition load, Secure against tampering or fake data injection, Deployable in a restricted network environment, and easy for administrators to visualize and audit in real time. 
+Based on these scenario and requirement, the monitoring system has to be simple and reliable under competition load, secure against tampering or fake data injection, deployable in a restricted network environment and easy for administrators to visualize and audit in real time. 
 
 #### 1.1 Usage Case Background And Objectives 
 
@@ -46,9 +48,9 @@ For example, the CISS-Red Stage One CTF event required continuous monitoring of 
 
 ### 2. System Architecture
 
-The monitoring system adopts a fetch-based agent architecture, where a central Monitor Hub actively pulls data from distributed agents instead of having agents push data upstream. This design choice is driven primarily by security considerations: in a CTF environment, participants may attempt to reverse-engineer agent code or forge requests to inject fake metrics. By keeping all data collection under the control of the central hub, the attack surface is significantly reduced and unauthorized data submission can be effectively prevented.
+The monitoring system adopts a Information-fetch-based agent architecture, where a central monitor hub actively pulls data from distributed agents instead of having agents push data upstream. This design choice is driven primarily by security considerations: in a CTF environment, participants may attempt to reverse-engineer agent code or forge requests to inject fake metrics. By keeping all data collection under the control of the central hub, the possible attack surface is significantly reduced and unauthorized data submission can be effectively prevented.
 
-From an architectural perspective, the system follows a simple three-tier design as shown below:
+From an architectural perspective, the system follows a simple three-tiers design as shown below:
 
 ```python
 ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
@@ -79,28 +81,28 @@ From an architectural perspective, the system follows a simple three-tier design
               └──────────────────────────────────────┘
 ```
 
-- **Agent Layer** – Lightweight Python agents deployed on, or connected to, monitored nodes to collect system and service metrics.
+- **Agent Layer** – Several lightweight Python agents deployed on, or connected to, monitored nodes to collect system and service metrics.
 
 - **Storage Layer** – An InfluxDB time-series database used to efficiently store and query monitoring data.
 
-- **Visualization Layer** – A Grafana dashboard that provides real-time visualization, historical analysis, and operational overview of the cluster and a message sender to send the 
+- **Visualization Layer** – A Grafana dashboard that provides real-time visualization, historical analysis, and operational overview of the cluster and a message sender to send possible alert via Telegram message.
 
 #### 2.1 System Workflow Detail
 
-The overall system workflow is illustrated in the diagram below.
+The overall system workflow is shown in the diagram below:
 
 ![](doc/img/s_01.png)
 
-In the CISS-Red CTF environment, the participants first SSH into a gateway through the firewall and then access their assigned challenge virtual machines. Each physical server hosting challenge VMs or Docker containers is equipped with two RJ45 network interfaces connected to two isolated networks:
+In the CISS-Red CTF environment, the participants first SSH into a public IP gateway through the firewall and then access their assigned challenge virtual machines. Each physical server hosting challenge VMs or Docker containers is equipped with two RJ45 network interfaces connected to two isolated networks:
 
 - **Interface 1 (blue path in the diagram)** is used exclusively for participant traffic to access the challenge services.
-- **Interface 2 (orange path in the diagram)** is dedicated to monitoring traffic, allowing the monitoring agents and hub to collect operational data without interfering with or being exposed to participant activity.
+- **Interface 2 (orange path in the diagram)** is dedicated to monitoring traffic, allowing the monitoring agents and hub to collect operational data without interfering with or being exposed to CTF participant activity.
 
 This configuration ensures that monitoring traffic does not affect the performance or fairness of the competition environment. From a functional point of view, the system consists of three main components:
 
-- **Service Prober Repository** : A reusable service-checking library that provides multiple probing functions (e.g., NTP, FTP, VNC, SSH, and custom service checks). These probers are used to verify whether a specific node, service, program, or function in the cluster is operating correctly.
-- **Prober Agent** : A lightweight agent responsible for scheduling and executing different probers to assess the availability and health of one or more targets in the cluster. The agent can run locally on a server to collect metrics directly. For nodes where an agent cannot be installed, the system falls back to **SSH-based command execution** to retrieve the required data remotely.
-- **Monitor Hub** : The central monitoring and analysis component, which provides: a database backend (InfluxDB) for archiving time-series metrics, a web-based dashboard (Grafana) for real-time and historical visualization, and extensible interfaces for integrating custom logic, such as score calculation formulas or competition-specific evaluation functions.
+- **Service Prober Repository** : A reusable python service-checking library that provides multiple probing functions (e.g., NTP, FTP, VNC, SSH, and custom service checks). These probers are used to verify whether a specific node, service, program, or function in the cluster is operating correctly.
+- **Prober Agent** : A lightweight agent responsible for scheduling and executing different probers to assess the availability and health of one or more targets in the cluster. The agent can run locally on a server to collect metrics directly. For nodes where an agent cannot be installed, the system falls back to SSH-based command execution to retrieve the required data remotely.
+- **Monitor Hub** : The central monitoring and analysis component, which provides a database backend (InfluxDB) for archiving time-series metrics, a web-based dashboard (Grafana) for real-time and historical visualization, and extensible interfaces for integrating custom logic, such as score calculation formulas or competition-specific evaluation functions.
 
 #### 2.2 Technology Stack
 
@@ -126,11 +128,11 @@ This section describes the detailed design of the three core components of the m
 
 #### 3.1 Service Prober Repository Design 
 
-The **Service Prober Repository** is a reusable python probing library that provides a wide range of functions to check the status of services, programs, and system resources then plug in to the prober agent. All probe functions are designed as modular components and can be grouped into three categories: **local service probers**, **child agent probers**, and **network service probers**.
+The Service Prober Repository is a reusable python probing library that provides a wide range of functions to check the status of services, programs, and system resources then plug in to the prober agent. All probe functions are designed as modular components and can be grouped into three categories: `local service probers`, `child agent probers`, and `network service probers`.
 
 **3.1.1 Local Service Probers**
 
-Local service probers run directly on the target node and focus on monitoring the node’s internal state, including:
+Local service probers run directly on the target nodes and focus on monitoring the node’s internal state, including:
 
 - System resource usage (CPU, memory, disk, network I/O),
 - User activities (login sessions, command execution, file system changes),
@@ -198,9 +200,9 @@ The data flow architecture is illustrated below :
 Two databases are used in the system:
 
 - **Raw Info Database** : Stores all collected raw monitoring data from the prober agents for auditing, analysis, and historical reference.
-- **Score Database** : Stores processed and aggregated data that is directly used for visualization and scoring display.
+- **State Database** : Stores processed and aggregated data that is directly used for visualization and state display.
 
-The **Data Manager** component retrieves data from the Raw Info Database, performs processing and analysis, applies user-defined scoring functions, and then inserts or updates the results in the Score Database. This separation ensures that raw data is preserved while keeping the visualization layer fast and focused on meaningful, high-level metrics.
+The Data Manager component retrieves data from the Raw Info Database, performs processing and analysis, applies user-defined scoring functions, and then inserts or updates the results in the State Database. This separation ensures that raw data is preserved while keeping the visualization layer fast and focused on meaningful, high-level metrics.
 
 
 
@@ -220,10 +222,10 @@ The dashboard below serves as the **overview page** of the entire cluster:
 
 This main page provides a high-level operational snapshot, including:
 
-- The **cluster network topology** and the service health status of each monitored physical server or sub-cluster,
-- The **number of online challenge services** compared to the total monitored services,
-- The **current health score** of challenge Docker containers, pods, and containers, along with their **historical score trends**,
-- The **service health percentage** of challenge virtual machines, categorized by service type.
+- The cluster network topology and the service health status of each monitored physical server or sub-cluster,
+- The number of online challenge services compared to the total monitored services,
+- The current health score of challenge Docker containers, pods, and containers, along with their historical score trends,
+- The service health percentage of challenge virtual machines, categorized by service type.
 
 #### 4.2 Physical Server Cluster Monitor Dashboard
 
