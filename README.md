@@ -2,6 +2,8 @@
 
 **Project Design Purpose** : This article walks through a lightweight, self-hosted server/VM cluster monitoring system built with Python, InfluxDB, and Grafana, designed specifically to handle the special or customized requirement for monitoring the  security labs, OT networks, or isolated clusters. Instead of relying on a black-box agent, you’ll build your own custom data collectors and monitor that fetch metrics from exactly the sources you need—whether that’s IPMI, network probes, or application-specific endpoints—and push them into a secure, local time-series database.
 
+![](doc/img/title.png)
+
 The practical example in this article is inspired by the CISS-Red_Cluster_Monitor project, which was developed to monitor a sandbox cluster (400+ VM) used for supporting a red team cybersecurity CTF competition. To make the design clear and reproducible, the article is structured around four main parts:
 
 - **Core Idea** – The overall system architecture, including the agent/fetcher model and communication flow.
@@ -262,9 +264,11 @@ An example alert message is shown below:
 
 ### 5. System Deployment and Configuration
 
-To setup the system in a cluster, please follow the below deployment steps: 
+In this section, I will introduce how to deploy the monitoring system in a cluster environment, including agent installation, hub configuration, database setup, and Grafana dashboard integration.
 
-**Step 1: Prepare Infrastructure on each monitored server**
+**Step 1: Prepare the Infrastructure on Each Monitored Server**
+
+First, ensure that each monitored server has the correct timezone, Python environment, and required dependencies installed:
 
 ```bash
 sudo timedatectl set-timezone Asia/Singapore
@@ -272,7 +276,11 @@ sudo apt update && sudo apt install python3 python3-pip -y
 udo pip3 install influxdb pythonping ntplib psutil --break-system-package
 ```
 
-**Step 3: Deploy Agents on the monitoring and monitored node**
+Note: Adjust the timezone and package installation method according to your OS and security policy.
+
+**Step 2: Deploy Agents on the Monitoring and Monitored Nodes**
+
+On each monitored server (or on designated probing nodes), clone the project and configure the agent:
 
 ```bash
 # On each monitored server
@@ -287,7 +295,7 @@ vim config.json  # Edit configuration
 sudo nohup python3 AgentRun.py > agent.log 2>&1 &
 ```
 
-Then set the agent configuration file as shown below:
+A simplified example of the agent configuration file is shown below:
 
 ```json
 {
@@ -326,7 +334,9 @@ Then set the agent configuration file as shown below:
 }
 ```
 
-**Step 4: Configure Monitor Hub**
+**Step 3: Configure and Start the Monitor Hub**
+
+On the central monitoring server, configure the list of agent endpoints:
 
 ```json
 # On central monitoring server
@@ -356,36 +366,40 @@ vim agents.json
 python3 MonitorHub.py
 ```
 
-**Step 5 Install the influxDB and verify data collection**
+**Step 4: Install InfluxDB and Verify Data Collection**
 
-```
+After installing InfluxDB and creating the required database (e.g., `monitorDB`), verify that data is being written correctly:
+
+```bash
 influx
 USE monitorDB
 SHOW MEASUREMENTS
 SELECT * FROM system_metrics LIMIT 10
 ```
 
-**Step 6 load the dashboard json and link influxDB to Grafana**
+If measurements are listed and queries return data, the data pipeline from agents to the database is working correctly.
 
-Install the Grafana and Access Grafana web interface (http://monitoring-server:3000)
+**Step 5: Import Grafana Dashboards and Configure InfluxDB Data Source**
 
-Login with admin credentials, Navigate to Dashboards → Import Upload dashboard JSON file or use Dashboard ID: 
+1. Install Grafana and access the web interface at:`http://<monitoring-server>:3000`
+2. Log in with the admin credentials.
+3. Navigate to **Dashboards → Import**, then upload the dashboard JSON file (or import using the Dashboard ID):
 
 ![](doc/img/s_09.png)
 
-Select Data Sources in the Setting tab, then create a new source InfluxDB and fill in the database server's IP and set the configuration as shown below:
+4. Go to **Settings → Data Sources**, create a new **InfluxDB** data source, and fill in the database server IP and credentials as shown below:
 
 ![](doc/img/s_10.png)
 
-Verify all panels display data correctly, if the panel shows no data as shown below:
+5. Verify that all panels display data correctly. If a panel shows **“No data”** as below:
 
 ![](doc/img/s_11.png)
 
-Check the connection of each agents, then check in each panel the data source configuration is correct as shown below:
+Check whether each agent is running and reachable, verify that the correct data source is selected in the panel settings:
 
 ![](doc/img/s_12.png)
 
-You can also use below command to insert some fake data to test whether the data is commit to the influx DB and can show in the chart.
+You can also insert test data manually to verify that InfluxDB and Grafana are working correctly:
 
 ```
 InfluxDB shell version: 1.8.10
@@ -398,7 +412,7 @@ Using database monitorDB
 > SHOW MEASUREMENTS
 ```
 
-Now you can start to use the cluster monitor system
+After completing these steps, the cluster monitoring system is fully operational and ready to provide real-time visibility and alerting for your infrastructure.
 
 
 
