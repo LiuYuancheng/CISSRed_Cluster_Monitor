@@ -120,82 +120,134 @@ The library and tools used in this project and the related link are shown in the
 
 ### 3. System Modules Design
 
-In this section we will introduce the detail design of the 3 components 
+This section describes the detailed design of the three core components of the monitoring system: the Service Prober Repository, the Prober Agent, and the Monitor Hub. 
 
-#### 3.1 Service Prober Repository 
+#### 3.1 Service Prober Repository Design 
 
-Service Prober Repository is a prober module lib to provide the service / program function check function. The prober function can be categorized to three parts: local service probers, children agent prober and network service probers.
+The **Service Prober Repository** is a reusable python probing library that provides a wide range of functions to check the status of services, programs, and system resources then plug in to the prober agent. All probe functions are designed as modular components and can be grouped into three categories: **local service probers**, **child agent probers**, and **network service probers**.
 
-**Local service prober :** The local service prober will run inside the target node to monitor the nodes resource usage (CPU%, Memory, Hard disk, user), network state (port opened, connection, NIC I/O state), local program execution state (process) and file system modification. The probers details are shown below: 
+**3.1.1 Local Service Probers**
 
-| **Prober Name**       | **Probe action/ service covered**                            |
+Local service probers run directly on the target node and focus on monitoring the node’s internal state, including:
+
+- System resource usage (CPU, memory, disk, network I/O),
+- User activities (login sessions, command execution, file system changes),
+- Local program and process states (process lifecycle, service ports, log status).
+
+The main local probers are summarized below:
+
+| **Prober Name**       | **Probe Action / Coverage**                                  |
 | --------------------- | ------------------------------------------------------------ |
-| Resource usage Prober | CPU %, Memory %, Hard Disk %, Network  Bandwidth Usage.      |
-| User action Prober    | User login, cmd  executed, file system modification.         |
-| Program action prober | Program execution, process started,  service port opened, program log check. |
+| Resource Usage Prober | CPU %, memory %, disk usage %, network bandwidth usage       |
+| User Action Prober    | User login, command execution, file system modification      |
+| Program Action Prober | Process execution, service startup, port status, log checking |
 
-**Children Agent prober :** A prober to fetch data from other prober agent program and merge the data. This prober is used for link the subnets which only linked with jump host without set routing table. 
+**3.1.2 Child Agent Prober**
 
-**Network Service prober:** The service prober run outside the target nodes to check the node's services state through network. The probe functions provided are shown below: 
+The Child Agent Prober is used to fetch and aggregate data from other prober agents and merge the results into a unified view. This mechanism is especially useful in segmented network environments where certain subnets are only reachable through a jump host and no direct routing is available. By chaining agents together, the system can bridge isolated network segments without changing the existing routing configuration.
 
-| **Prober Name**              | **Probe action/ service covered**                            |
-| ---------------------------- | ------------------------------------------------------------ |
-| Server active Prober         | ICMP (ping), SSH(login), RDP, VNC,  X11/X11:1-Win            |
-| Service ports prober         | Use a customized Nmap lib check whether  the node's request service ports are opened. |
-| **NTP** service prober       | Check the NTP  service latency and time offset correctness.  |
-| **DNS/NS**  service prober   | Check the dns service name mapping correct.                  |
-| **DHCP** service prober      | Check the dhcp broadcast.                                    |
-| **FTP** service prober       | Whether can  login the FTP server and list the directory tree. |
-| **Http/https web** prober    | Check the webserver can handle request correctly             |
-| **Email**  service prober    | Check whether the email server is working normally           |
-| **TCP/UDP**  service prober  | Service use  TCP/UDP connection. (such as MS-Teams, Skype service) |
-| **Database**  service prober | Check the database connection                                |
+**3.1.3 Network Service Probers**
 
-#### 3.2 Prober Agent Module
+Network service probers run outside the target nodes and verify service availability and correctness over the network. These probers simulate real client behavior and check whether services are reachable, responsive, and functioning as expected.
 
-An agent program collects and schedules several different kinds of probers based on the customized config profile to check the entire service availably of a small cluster as shown in the below diagram
+| **Prober Name**         | **Probe Action / Coverage**                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| Server Active Prober    | ICMP (ping), SSH login, RDP, VNC, X11/X11:1-Win              |
+| Service Ports Prober    | Customized Nmap-based port scanning for required services    |
+| NTP Service Prober      | NTP latency and time offset correctness                      |
+| DNS/NS Service Prober   | DNS name resolution correctness                              |
+| DHCP Service Prober     | DHCP broadcast and response check                            |
+| FTP Service Prober      | FTP login and directory listing                              |
+| HTTP/HTTPS Web Prober   | Web service request/response correctness                     |
+| Email Service Prober    | Basic email service availability check                       |
+| TCP/UDP Service Prober  | Generic TCP/UDP service connectivity (e.g., Teams, Skype-like services) |
+| Database Service Prober | Database connectivity and basic query checks                 |
+
+These probers together provide comprehensive coverage of both infrastructure health and application-level service availability.
+
+#### 3.2 Prober Agent Module Design
+
+The Prober Agent is responsible for collecting, scheduling, and executing different probers based on a customized configuration profile. Each agent can monitor a single node or multiple targets, depending on deployment needs. The overall workflow is illustrated in the diagram below.
 
 ![](doc/img/s_02.png)
 
-The prober agent provides below 5 main features: 
+The prober agent provides the following five key features:
 
-- **Configuration base on profile** : User can easily use their customized profile to config all probers’ execution timeline.
-- **Probing from outside/Inside** : Agent can run inside the critical node to check the node's local state or run outside in a node to check the service interface of multiple nodes. So, the customer can deploy the agents based on his monitor priority instead of deploying agent to every node. 
-- **Customized prober plugin** : It also provides the interface for customer to plugin their customized probe function for specific service (such as a check a billing server).
-- **Data report bus**: To avoid changing the original routing config of a cluster, a prober agent can also fetch data from the other touchable prober agents to build a data translation bus/chain to make the deployment easier.
-- **Multiple connection protocol** : The agent provide different network protocol for data fetch/report (TCP, UDP, HTTP, HTTPS) to fit for the network traffic limitation requirement in a cyber exercise. 
+- **Profile-Based Configuration** : Users can define customized profiles to control which probers run, their execution intervals, and their target scope, making the monitoring behavior easy to adapt to different environments.
+- **Inside/Outside Probing** : The agent can run inside critical nodes to inspect local system state, or outside to probe the service interfaces of multiple nodes. This allows flexible deployment without requiring an agent on every single node.
+- **Custom Prober Plugins** : The system provides extension interfaces for users to plug in their own custom probers for application-specific checks (e.g., verifying the status of a billing service or competition scoring service).
+- **Data Relay Bus** : To avoid changing the original network routing of a cluster, a prober agent can also fetch data from other reachable agents and act as a relay, forming a data collection chain across segmented networks.
+- **Multiple Communication Protocols** : The agent supports multiple data fetch and reporting protocols (TCP, UDP, HTTP, HTTPS) to adapt to different network security policies and traffic restrictions commonly found in cyber exercise environments.
 
-#### 3.3 Monitor Hub Module
+#### 3.3 Monitor Hub Module Design
 
-The monitor hub is a data processing, analysis and visualization system. All the prober agents will report their monitor result to the monitor hub via communication manager. The monitor hub provides a web-based dashboard (currently we are using Grafana) for users to check the monitored cluster's state, a topology diagram to show the clusters’ services online state and it also provides the interface for user to plug in their score calculation formular/function. The data flow diagram is shown on the right side. 
+The Monitor Hub is the central component responsible for data ingestion, processing, analysis, and visualization. All prober agents report their monitoring results to the hub through a communication manager. The hub then stores, processes, and presents the data to administrators through a web-based interface (currently using Grafana).
 
-Two data bases will be included in the program: 
+In addition to real-time dashboards, the Monitor Hub also provides:
+
+- A topology view showing the online/offline state of cluster services,
+
+- And an extension interface for integrating custom scoring or evaluation functions, which is particularly useful in CTF or cyber exercise scenarios.
+
+The data flow architecture is illustrated below : 
 
 ![](doc/img/s_03.png)
 
-- **Raw info database:** A database used to archive all the collected service data. 
+Two databases are used in the system:
 
-- **Score database**: A database save all the data need to be visualized in the score database. 
+- **Raw Info Database** : Stores all collected raw monitoring data from the prober agents for auditing, analysis, and historical reference.
+- **Score Database** : Stores processed and aggregated data that is directly used for visualization and scoring display.
 
-The data manager will fetch needed data from Raw-Info-DB, process and analysis the raw data and calculate the service core based on customer's score calculation function, then insert/update the data in score database.
-
-
-
+The **Data Manager** component retrieves data from the Raw Info Database, performs processing and analysis, applies user-defined scoring functions, and then inserts or updates the results in the Score Database. This separation ensures that raw data is preserved while keeping the visualization layer fast and focused on meaningful, high-level metrics.
 
 
 
+### 4. Grafana Dashboard UI and Telegram Config
+
+In the Grafana, we setup different charts to show the historian information and the chart is setting in the different dashboard. 
+
+**4.1 Cluster main sate view dashboard**
+
+Below diagram is the main page to show the overview of the whole cluster 
+
+![](doc/img/s_04.png)
+
+The main page includes: 
+
+- The cluster’s network topology and the service health of each monitored physical server machine  or sub-cluster 
+- The online and total challenge program services monitored count
+- The current challenge docker, pods and container healthy score and the score history diagram
+- Current Challenge visual machine Service health percentage categorized by services type.  
+
+**4.2 Physical Server Cluster Monitor Dashboard**
+
+For each physical server, click the" physical cluster monitor" link contents 22 small chart under 4 column, the column 1 and 2 will show the physical servers' CPU and Ram usage %, the column 3 and 4 will show the network latency as shown below:
+
+![](doc/img/s_05.png)
+
+**4.3 Cluster Network Device and connection Dashboard** 
+
+For each network node, click the" network nodes monitor dashboard" link,  it will show the outgress network connection,  the firewall and forward router network flow state as shown below diagram:
+
+![](doc/img/s_06.png)
+
+**4.4 CTF Challenge VM, docker service dashboard**
+
+The challenge host VM and docker state dashboard is shown below:
+
+![](doc/img/s_08.png)
+
+4.5 Telegram remainder chat  
+
+If there is any network latency more than the configured theshold, the system will send a remained alert chart to show the detail alert to the competition technical support team challenge.
+
+![](doc/img/s_07.png)
 
 
 
+------
 
 
-![](doc/img/workflow.png)
-
-##### Dashboard UI
-
-The main dashboard contents 22 small chart under 4 column, the column 1 and 2 will show the physical servers' CPU and Ram usage %, the column 3 and 4 will show the network latency.
-
-![](doc/img/ui0.png)
 
 
 
