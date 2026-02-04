@@ -202,44 +202,57 @@ The **Data Manager** component retrieves data from the Raw Info Database, perfor
 
 
 
-### 4. Grafana Dashboard UI and Telegram Config
+------
 
-In the Grafana, we setup different charts to show the historian information and the chart is setting in the different dashboard. 
+### 4. Grafana Dashboard UI and Telegram Alerts
 
-**4.1 Cluster main sate view dashboard**
+To make the monitoring data actionable and easy to understand, the system uses **Grafana** to build a set of dedicated dashboards for different operational views. Each dashboard focuses on a specific aspect of the cluster, such as overall service health, physical server performance, network status, or CTF challenge environments. Historical data and real-time metrics are both visualized, allowing administrators to quickly identify trends, anomalies, and incidents.
 
-Below diagram is the main page to show the overview of the whole cluster 
+In addition to dashboards, the system integrates a **Telegram alert mechanism** to notify the support team immediately when abnormal conditions are detected (e.g., high latency, service downtime, or degraded health scores).
+
+#### 4.1 Cluster Main State View Dashboard
+
+The dashboard below serves as the **overview page** of the entire cluster:
 
 ![](doc/img/s_04.png)
 
-The main page includes: 
+This main page provides a high-level operational snapshot, including:
 
-- The cluster’s network topology and the service health of each monitored physical server machine  or sub-cluster 
-- The online and total challenge program services monitored count
-- The current challenge docker, pods and container healthy score and the score history diagram
-- Current Challenge visual machine Service health percentage categorized by services type.  
+- The **cluster network topology** and the service health status of each monitored physical server or sub-cluster,
+- The **number of online challenge services** compared to the total monitored services,
+- The **current health score** of challenge Docker containers, pods, and containers, along with their **historical score trends**,
+- The **service health percentage** of challenge virtual machines, categorized by service type.
 
-**4.2 Physical Server Cluster Monitor Dashboard**
+#### 4.2 Physical Server Cluster Monitor Dashboard
 
-For each physical server, click the" physical cluster monitor" link contents 22 small chart under 4 column, the column 1 and 2 will show the physical servers' CPU and Ram usage %, the column 3 and 4 will show the network latency as shown below:
+For each physical server, clicking the “Physical Cluster Monitor” link opens a detailed performance dashboard. This page contains 22 small charts arranged in four columns as shown below : 
 
 ![](doc/img/s_05.png)
 
-**4.3 Cluster Network Device and connection Dashboard** 
+- Columns 1 and 2 display **CPU and RAM usage percentages** of the physical servers,
+- Columns 3 and 4 show **network latency metrics** and related network performance indicators.
 
-For each network node, click the" network nodes monitor dashboard" link,  it will show the outgress network connection,  the firewall and forward router network flow state as shown below diagram:
+#### 4.3 Cluster Network Device and Connection Dashboard
+
+For network-level visibility, the **“Network Nodes Monitor Dashboard”** provides a focused view of infrastructure traffic and connectivity. As shown below:
 
 ![](doc/img/s_06.png)
 
-**4.4 CTF Challenge VM, docker service dashboard**
+It is particularly useful for diagnosing **network bottlenecks, misconfigurations, or abnormal traffic patterns** during the competition with visualizing the Outbound and inbound network connections, Firewall traffic flow states and Firewall traffic flow states. 
 
-The challenge host VM and docker state dashboard is shown below:
+#### 4.4 CTF Challenge VM, docker service dashboard
+
+The **Challenge VM and Docker Service Dashboard** focuses on the actual competition environments.(As shown the example below)
 
 ![](doc/img/s_08.png)
 
-4.5 Telegram remainder chat  
+This dashboard is typically used by the technical support team to quickly confirm whether a specific challenge environment is running correctly or experiencing service degradation It shows the runtime status and health of Challenge virtual machines, Docker containers and related services and Service availability and stability indicators.
 
-If there is any network latency more than the configured theshold, the system will send a remained alert chart to show the detail alert to the competition technical support team challenge.
+#### 4.5 Telegram Alert Notifications
+
+In addition to visual dashboards, the system provides **real-time alerting via Telegram**. When a metric exceeds a configured threshold (for example, network latency going beyond the acceptable limit, or a service becoming unavailable), the system automatically sends an **alert message** to the competition technical support group.
+
+An example alert message is shown below:
 
 ![](doc/img/s_07.png)
 
@@ -247,51 +260,134 @@ If there is any network latency more than the configured theshold, the system wi
 
 ------
 
+### 5. System Deployment and Configuration
 
+To setup the system in a cluster, please follow the below deployment steps: 
 
+**Step 1: Prepare Infrastructure on each monitored server**
 
-
-
-
-
-
-
-
-config cmd:
-
-```
-mkdir monitorAgent
+```bash
 sudo timedatectl set-timezone Asia/Singapore
-sudo vim /etc/resolv.conf
-sudo apt install python3-pip
-sudo pip3 install influxdb
-sudo pip3 install pythonping
-sudo pip3 install ntplib
-sudo pip3 install psutil
+sudo apt update && sudo apt install python3 python3-pip -y
+udo pip3 install influxdb pythonping ntplib psutil --break-system-package
+```
+
+**Step 3: Deploy Agents on the monitoring and monitored node**
+
+```bash
+# On each monitored server
+mkdir -p ~/monitorAgent
+cd ~/monitorAgent
 git clone https://github.com/LiuYuancheng/CISSRed_Cluster_Monitor.git
-
-sudo nohup python3 monitorAgent/CISSRed_Cluster_Monitor/src/client/AgentRun.py &
-
-sudo nohup python3 AgentRun.py &
-
-record the process:
-
-sudo nohup python3 AgentRun.py &
-
-ncl@cptest4:~$ sudo nohup python3 monitorAgent/CISSRed_Cluster_Monitor/src/client/AgentRun.py &
-[1] 137511
-
-163414
-
-ps ax | grep AgetntRun.py
-
-sudo systemctl start influxdb
+cd CISSRed_Cluster_Monitor/src/client/
+# Configure agent
+cp config.template.json config.json
+vim config.json  # Edit configuration
+# Start agent
+sudo nohup python3 AgentRun.py > agent.log 2>&1 &
 ```
 
+Then set the agent configuration file as shown below:
 
+```json
+{
+  "agent": {
+    "hostname": "server1",
+    "collection_interval": 60,
+    "http_port": 8080,
+    "log_level": "INFO",
+    "log_file": "/var/log/monitoring/agent.log"
+  },
+  "metrics": {
+    "system": {
+      "enabled": true,
+      "collect_cpu": true,
+      "collect_memory": true,
+      "collect_disk": false
+    },
+    "network": {
+      "enabled": true,
+      "ping_targets": [
+        "192.168.1.1",
+        "192.168.1.254"
+      ],
+      "ping_count": 4,
+      "ping_interval": 60
+    }
+  },
+  "storage": {
+    "local_cache_size": 1000,
+    "cache_directory": "./metrics_cache"
+  },
+  "time": {
+    "ntp_server": "pool.ntp.org",
+    "sync_interval": 3600
+  }
+}
+```
+
+**Step 4: Configure Monitor Hub**
+
+```json
+# On central monitoring server
+cd ~/monitorAgent/CISSRed_Cluster_Monitor/src/hub/
+# Configure agent endpoints
+vim agents.json
+# Example agents.json
+[
+  {
+    "hostname": "server1",
+    "url": "http://xxx.xxx.xxx.xxx:8080",
+    "tags": {
+      "role": "compute",
+      "location": "rack1"
+    }
+  },
+  {
+    "hostname": "server2",
+    "url": "http://xxx.xxx.xxx.xxx:8080",
+    "tags": {
+      "role": "compute",
+      "location": "rack1"
+    }
+  }
+]
+# Start monitor hub
+python3 MonitorHub.py
+```
+
+**Step 5 Install the influxDB and verify data collection**
 
 ```
-Connected to http://localhost:8086 version 1.8.10
+influx
+USE monitorDB
+SHOW MEASUREMENTS
+SELECT * FROM system_metrics LIMIT 10
+```
+
+**Step 6 load the dashboard json and link influxDB to Grafana**
+
+Install the Grafana and Access Grafana web interface (http://monitoring-server:3000)
+
+Login with admin credentials, Navigate to Dashboards → Import Upload dashboard JSON file or use Dashboard ID: 
+
+![](doc/img/s_09.png)
+
+Select Data Sources in the Setting tab, then create a new source InfluxDB and fill in the database server's IP and set the configuration as shown below:
+
+![](doc/img/s_10.png)
+
+Verify all panels display data correctly, if the panel shows no data as shown below:
+
+![](doc/img/s_11.png)
+
+Check the connection of each agents, then check in each panel the data source configuration is correct as shown below:
+
+![](doc/img/s_12.png)
+
+You can also use below command to insert some fake data to test whether the data is commit to the influx DB and can show in the chart.
+
+```
 InfluxDB shell version: 1.8.10
 > SHOW MEASUREMENTS ON monitorDB
 > SHOW MEASUREMENTS ON gatewayDB
@@ -300,10 +396,12 @@ Using database monitorDB
 > SHOW MEASUREMENTS
 > INSERT cpu,host=serverA value=10
 > SHOW MEASUREMENTS
-name: measurements
-name
-----
-cpu
-> exit
 ```
 
+Now you can start to use the cluster monitor system
+
+
+
+------
+
+> Last edit by LiuYuancheng (liu_yuan_cheng@hotmail.com) at 04/02/2026
