@@ -25,6 +25,24 @@ The practical example in this article is inspired by the CISS-Red_Cluster_Monito
 
 [TOC]
 
+- [**Building a Lightweight, Secure Cluster Monitor with InfluxDB and Grafana**](#--building-a-lightweight--secure-cluster-monitor-with-influxdb-and-grafana--)
+    + [1. Introduction](#1-introduction)
+      - [1.1 Usage Case Background And Objectives](#11-usage-case-background-and-objectives)
+    + [2. System Architecture](#2-system-architecture)
+      - [2.1 System Workflow Detail](#21-system-workflow-detail)
+      - [2.2 Technology Stack](#22-technology-stack)
+    + [3. System Modules Design](#3-system-modules-design)
+      - [3.1 Service Prober Repository Design](#31-service-prober-repository-design)
+      - [3.2 Prober Agent Module Design](#32-prober-agent-module-design)
+      - [3.3 Monitor Hub Module Design](#33-monitor-hub-module-design)
+    + [4. Grafana Dashboard UI and Telegram Alerts](#4-grafana-dashboard-ui-and-telegram-alerts)
+      - [4.1 Cluster Main State View Dashboard](#41-cluster-main-state-view-dashboard)
+      - [4.2 Physical Server Cluster Monitor Dashboard](#42-physical-server-cluster-monitor-dashboard)
+      - [4.3 Cluster Network Device and Connection Dashboard](#43-cluster-network-device-and-connection-dashboard)
+      - [4.4 CTF Challenge VM and Docker Service Dashboard](#44-ctf-challenge-vm-and-docker-service-dashboard)
+      - [4.5 Telegram Alert Notifications](#45-telegram-alert-notifications)
+    + [5. System Deployment and Configuration](#5-system-deployment-and-configuration)
+
 ------
 
 ### 1. Introduction
@@ -171,7 +189,7 @@ These probers together provide comprehensive coverage of both infrastructure hea
 
 #### 3.2 Prober Agent Module Design
 
-The Prober Agent is responsible for collecting, scheduling, and executing different probers based on a customized configuration profile. Each agent can monitor a single node or multiple targets, depending on deployment needs. The overall workflow is illustrated in the diagram below.
+The Prober Agent is responsible for collecting, scheduling, and executing different probers based on a customized configuration profile. Each agent can monitor a single node or multiple targets, depending on deployment needs. The overall workflow is shown in the diagram below.
 
 ![](doc/img/s_02.png)
 
@@ -222,31 +240,31 @@ The dashboard below serves as the **overview page** of the entire cluster:
 
 This main page provides a high-level operational snapshot, including:
 
-- The cluster network topology and the service health status of each monitored physical server or sub-cluster,
+- The cluster network topology and the service health status of each monitored physical server/router or sub-cluster,
 - The number of online challenge services compared to the total monitored services,
 - The current health score of challenge Docker containers, pods, and containers, along with their historical score trends,
 - The service health percentage of challenge virtual machines, categorized by service type.
 
 #### 4.2 Physical Server Cluster Monitor Dashboard
 
-For each physical server, clicking the “Physical Cluster Monitor” link opens a detailed performance dashboard. This page contains 22 small charts arranged in four columns as shown below : 
+For each physical server, clicking the “`Physical Cluster Monitor`” link will open a detailed performance dashboard. This page contains 22 small charts arranged in four columns as shown below : 
 
 ![](doc/img/s_05.png)
 
-- Columns 1 and 2 display **CPU and RAM usage percentages** of the physical servers,
-- Columns 3 and 4 show **network latency metrics** and related network performance indicators.
+- Columns 1 and 2 display CPU and RAM usage percentages of the physical servers,
+- Columns 3 and 4 show network latency and bandwidth usage metrics and related network performance indicators.
 
 #### 4.3 Cluster Network Device and Connection Dashboard
 
-For network-level visibility, the **“Network Nodes Monitor Dashboard”** provides a focused view of infrastructure traffic and connectivity. As shown below:
+For network-level visibility, the “`Network Nodes Monitor Dashboard`” provides a focused view of infrastructure traffic and connectivity. As shown below:
 
 ![](doc/img/s_06.png)
 
-It is particularly useful for diagnosing **network bottlenecks, misconfigurations, or abnormal traffic patterns** during the competition with visualizing the Outbound and inbound network connections, Firewall traffic flow states and Firewall traffic flow states. 
+It is particularly useful for diagnosing network bottlenecks, misconfigurations, or abnormal traffic patterns during the competition with visualizing the outbound and inbound network connections and the firewall traffic flow states. 
 
-#### 4.4 CTF Challenge VM, docker service dashboard
+#### 4.4 CTF Challenge VM and Docker Service Dashboard
 
-The **Challenge VM and Docker Service Dashboard** focuses on the actual competition environments.(As shown the example below)
+The `Challenge VM and Docker Service Dashboard` focuses on the actual competition environments (VMs, Container and Dockers ) as shown the example below:
 
 ![](doc/img/s_08.png)
 
@@ -254,9 +272,7 @@ This dashboard is typically used by the technical support team to quickly confir
 
 #### 4.5 Telegram Alert Notifications
 
-In addition to visual dashboards, the system provides **real-time alerting via Telegram**. When a metric exceeds a configured threshold (for example, network latency going beyond the acceptable limit, or a service becoming unavailable), the system automatically sends an **alert message** to the competition technical support group.
-
-An example alert message is shown below:
+In addition to visual dashboards, the system provides real-time alerting via Telegram. When a metric exceeds a configured threshold (for example, network latency going beyond the acceptable limit, or a service becoming unavailable), the system automatically sends an alert message to the competition technical support group. An example alert message is shown below:
 
 ![](doc/img/s_07.png)
 
@@ -266,11 +282,11 @@ An example alert message is shown below:
 
 ### 5. System Deployment and Configuration
 
-In this section, I will introduce how to deploy the monitoring system in a cluster environment, including agent installation, hub configuration, database setup, and Grafana dashboard integration.
+In this section, I will introduce how to deploy the monitoring system in a computing cluster environment, including agent installation, hub configuration, database setup, and Grafana dashboard integration.
 
 **Step 1: Prepare the Infrastructure on Each Monitored Server**
 
-First, ensure that each monitored server has the correct timezone, Python environment, and required dependencies installed:
+First, ensure that each monitored server has the correct time zone, Python environment, and required dependencies installed:
 
 ```bash
 sudo timedatectl set-timezone Asia/Singapore
@@ -278,7 +294,7 @@ sudo apt update && sudo apt install python3 python3-pip -y
 udo pip3 install influxdb pythonping ntplib psutil --break-system-package
 ```
 
-Note: Adjust the timezone and package installation method according to your OS and security policy.
+Note: Adjust the time zone and package installation method according to your OS and security policy.
 
 **Step 2: Deploy Agents on the Monitoring and Monitored Nodes**
 
@@ -370,7 +386,7 @@ python3 MonitorHub.py
 
 **Step 4: Install InfluxDB and Verify Data Collection**
 
-After installing InfluxDB and creating the required database (e.g., `monitorDB`), verify that data is being written correctly:
+After installing `InfluxDB_1.8.10` and creating the required database (e.g., `monitorDB`), verify that data is being written correctly:
 
 ```bash
 influx
