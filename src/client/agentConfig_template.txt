@@ -1,0 +1,17 @@
+# This is the config file template for the module <AgentRun.py>
+# Setup the parameter with below format (every line follows <key>:<val> format, the
+# key can not be changed):
+
+Test_Mode:False
+
+#-----------------------------------------------------------------------------
+Hub_Addr:127.0.0.1
+Hub_Http_Port:5000
+Hub_Udp_Port:3001
+
+#-----------------------------------------------------------------------------
+OWN_ID:192.168.35.102
+
+#-----------------------------------------------------------------------------
+BG_CTRL:True
+TIME_INV:60

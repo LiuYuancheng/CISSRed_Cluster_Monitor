@@ -1,6 +1,6 @@
 # **Building a Lightweight, Secure Cluster Monitor with InfluxDB and Grafana**
 
-> **[ A Practical Guide Inspired by the CISS-Red_Cluster_Monitor Project ] **
+> **[ A Practical Guide Inspired by the CISS-Red_Cluster_Monitor Project ]**
 
 **Project Design Purpose** : This article walks through a lightweight, self-hosted server/VM cluster monitoring system built with Python, InfluxDB, and Grafana, designed specifically to handle the special or customized requirement for monitoring the security labs, CTF environment, OT networks, or isolated clusters. Instead of relying on a black-box agent, you’ll build your own custom data collectors and monitor that fetch metrics from exactly the sources you need—whether that’s IPMI, network probes, or application-specific endpoints—push them into a secure, local time-series database and visualize the data with customized dashboards.
 
@@ -291,7 +291,7 @@ First, ensure that each monitored server has the correct time zone, Python envir
 ```bash
 sudo timedatectl set-timezone Asia/Singapore
 sudo apt update && sudo apt install python3 python3-pip -y
-udo pip3 install influxdb pythonping ntplib psutil --break-system-package
+sudo pip3 install influxdb pythonping ntplib psutil --break-system-package
 ```
 
 Note: Adjust the time zone and package installation method according to your OS and security policy.
